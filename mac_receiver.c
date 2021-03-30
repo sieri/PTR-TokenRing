@@ -17,6 +17,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 void MacReceiver(void *argument)
 {
+	struct queueMsg_t queueMsg;	//Queue message
+	uint8_t *msg;								//Pointer for the message
+	uint8_t *qPtr;							//Pointer for the queue
+	osStatus_t retCode;					//For the return code
+	
 	for(;;)
 	{
 		//----------------------------------------------------------------------------
@@ -24,6 +29,9 @@ void MacReceiver(void *argument)
     //----------------------------------------------------------------------------
 
 		//get data from queue
+		retCode = osMessageQueueGet(queue_macR_id, &queueMsg, NULL, osWaitForever);
+		CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);		//Verify the retCode
+		qPtr = queueMsg.anyPtr;
 		
 		//check address
 		
@@ -54,10 +62,7 @@ void MacReceiver(void *argument)
 				//send mac error
 				//send token
 			//end if
-			
-
 	}
-
 }
 
 
