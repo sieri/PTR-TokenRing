@@ -22,6 +22,8 @@ void MacSender(void *argument)
 	uint8_t *qPtr;							//Pointer for the queue
 	osStatus_t retCode;					//For the return code
 	
+	uint8_t token[TOKENSIZE]; //token storage
+	
 	for(;;)
 	{
 		//----------------------------------------------------------------------------
@@ -32,31 +34,41 @@ void MacSender(void *argument)
 		retCode = osMessageQueueGet(queue_macS_id, &queueMsg, NULL, osWaitForever);
 		CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);		//Verify the retCode
 		qPtr = queueMsg.anyPtr;
+
 		
 		//check token or data or request
 		
 		//if token
-		if(qPtr[0] == TOKEN_TAG)
+		
+		if(queueMsg.type == TOKEN)
 		{
 			//check buffer
-			//if buffer empty
-				//update ready list
-				
-				//update update State_st_i field
-		
-				//first time token if required
-				if(queueMsg.type == NEW_TOKEN)
+			//update ready list
+			for(uint32_t i = 0; i < 15 ;i++)
+			{
+				if(i != gTokenInterface.myAddress)
 				{
-					//Create new token
+					gTokenInterface.station_list[i] = *(qPtr+i+1);
 				}
+				else
+				{
+					//update update State_st_i field
+					*(qPtr+i+1) = gTokenInterface.station_list[i];
+				}
+
+			}
+			
+			
+			//if buffer empty
+
 				//send token
+				retCode = osMessageQueuePut(queue_phyS_id, &queueMsg, osPriorityNormal, 0);
+				CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
 		
 			//else buffer not empty
 			
 				/*QUEUE SEND*/ 
-				//update ready list
-				
-				//update update State_st_i field
+
 				
 				//complete data frame
 				
@@ -64,6 +76,23 @@ void MacSender(void *argument)
 				//buffer--
 			//end if
 		}//end if token
+		//first time token if required
+		else if(queueMsg.type == NEW_TOKEN)
+		{
+			//Create new token
+			queueMsg.type = TOKEN;
+			
+			token[0] = TOKEN_TAG;
+			
+			//clear token
+			memset(token+1, 0, TOKENSIZE-1);
+			
+			queueMsg.anyPtr = token;
+			
+			//send token
+			retCode = osMessageQueuePut(queue_phyS_id, &queueMsg, osPriorityNormal, 0);
+			CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
+		}
 		//else if data
 		else if(queueMsg.type == FROM_PHY)
 		{
@@ -71,11 +100,21 @@ void MacSender(void *argument)
 			//store data in buffer
 			//buffer++
 		}
-		//else if request
-		else if()
+		//else if mac request
+		else if(queueMsg.type == START)
 		{
-			//save request change
-		}//end 	
+			//update ready list
+			
+		}
+		else if(queueMsg.type == STOP)
+		{
+			//update ready list
+		}
+		else if(queueMsg.type == TOKEN_LIST)
+		{
+			//push ready lists
+		}
+		
 	}
 }
 

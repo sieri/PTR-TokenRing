@@ -33,35 +33,50 @@ void MacReceiver(void *argument)
 		CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);		//Verify the retCode
 		qPtr = queueMsg.anyPtr;
 		
-		//check address
-		
-		//if address source not this station
-			//if address destination not this station
-				// send back to physic
-			//else
-				//compute checksum
-				//if checksum ok
-					//read= 1, ack = 1
-					//send back to physic
-					//send indication app
+
+		if(queueMsg.type == FROM_PHY)
+		{
+			if(qPtr[0] == TOKEN_TAG)
+			{
+				queueMsg.type = TOKEN;
+				retCode = osMessageQueuePut(queue_macS_id, &queueMsg, osPriorityNormal, 0);
+				CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
+			}
+			//else data indication
+			//check address
+			
+			//if address source not this station
+				//if address destination not this station
+					// send back to physic
 				//else
-					//read= 1, ack = 0
-					//send back to physic
-				//end if
-			//end if destination check	
-		//else source this station
-			//check read bit
-			//if read = 1
-				//if ack = 1
+					//compute checksum
+					//if checksum ok
+						//read= 1, ack = 1
+						//send back to physic
+						//send indication app
+					//else
+						//read= 1, ack = 0
+						//send back to physic
+					//end if
+				//end if destination check	
+			//else source this station
+				//check read bit
+				//if read = 1
+					//if ack = 1
+						//send token
+					//else 
+						//read= 0, ack = 0
+						//send back to physic
+					//end if
+				//else read 0
+					//send mac error
 					//send token
-				//else 
-					//read= 0, ack = 0
-					//send back to physic
 				//end if
-			//else read 0
-				//send mac error
-				//send token
-			//end if
+					//else if token
+
+		}
+
+		
 	}
 }
 
