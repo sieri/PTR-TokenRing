@@ -21,6 +21,9 @@ void MacSender(void *argument)
 	struct queueMsg_t queueMsg;	//Queue message
 	uint8_t *qPtr;							//Pointer for the queue
 	osStatus_t retCode;					//For the return code
+	uint8_t buffer[10][MAX_BLOCK_SIZE];	//Array of queueMessage 
+	uint8_t index = 0;	//Index for the array buffer
+	uint8_t checksum = 0;	
 	
 	uint8_t token[TOKENSIZE]; //token storage
 	
@@ -39,7 +42,6 @@ void MacSender(void *argument)
 		//check token or data or request
 		
 		//if token
-		
 		if(queueMsg.type == TOKEN)
 		{
 			//check buffer
@@ -57,25 +59,25 @@ void MacSender(void *argument)
 				}
 
 			}
-			
-			
 			//if buffer empty
-
+			if(index == 0)
+			{
 				//send token
 				retCode = osMessageQueuePut(queue_phyS_id, &queueMsg, osPriorityNormal, 0);
 				CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
-		
-			//else buffer not empty
-			
-				/*QUEUE SEND*/ 
-
-				
-				//complete data frame
-				
+			}
+			else//else buffer not empty
+			{
+				/*QUEUE SEND*/ 	
 				//put frame to queue
-				//buffer--
-			//end if
-		}//end if token
+				queueMsg.type = TO_PHY;
+				queueMsg.anyPtr = &buffer[index];
+				retCode = osMessageQueuePut(queue_phyS_id, &queueMsg, osPriorityNormal, 0);
+				CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
+
+				index--;
+			}
+		}
 		//first time token if required
 		else if(queueMsg.type == NEW_TOKEN)
 		{
@@ -94,11 +96,27 @@ void MacSender(void *argument)
 			CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
 		}
 		//else if data
-		else if(queueMsg.type == FROM_PHY)
+		else if(queueMsg.type == DATA_IND)
 		{
 			/*store*/
 			//store data in buffer
-			//buffer++
+			buffer[index][0] = (gTokenInterface.myAddress)<<3 + (queueMsg.sapi&0x03);
+			buffer[index][1] = (queueMsg.addr)<<3 + (queueMsg.sapi&0x03);
+			strcpy(buffer[index]+3, queueMsg.anyPtr);
+			
+			//calcul of the checksum
+			int length = 3;
+			checksum = 0;
+			while(buffer[index][length] != '\0')
+			{
+				checksum += buffer[index][length];
+				length++;
+			}
+			buffer[index][2] = length-3;
+			buffer[index][length] = checksum<<2;
+			
+			index++;	
+			
 		}
 		//else if mac request
 		else if(queueMsg.type == START)
