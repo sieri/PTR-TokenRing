@@ -33,7 +33,6 @@ void MacSender(void *argument)
 		//	QUEUE READ										
     //----------------------------------------------------------------------------
 
-		//TODO: get data from queue
 		retCode = osMessageQueueGet(queue_macS_id, &queueMsg, NULL, osWaitForever);
 		CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);		//Verify the retCode
 		qPtr = queueMsg.anyPtr;
@@ -124,6 +123,9 @@ void MacSender(void *argument)
 			checksum += *buffer[index] + *(buffer[index]+1) + *(buffer[index]+2);
 			*(buffer[index]+length+3) = checksum<<2;
 			
+			retCode = osMemoryPoolFree(memPool, qPtr);
+			CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
+			
 			index++;	
 			
 		}
@@ -131,16 +133,13 @@ void MacSender(void *argument)
 		else if(queueMsg.type == START)
 		{
 			//update ready list
-			
+			gTokenInterface.station_list[gTokenInterface.myAddress] = CHAT_SAPI+TIME_SAPI;
 		}
 		else if(queueMsg.type == STOP)
 		{
-			//update ready list
+			gTokenInterface.station_list[gTokenInterface.myAddress] = 0;
 		}
-		else if(queueMsg.type == TOKEN_LIST)
-		{
-			//push ready lists
-		}
+
 		
 	}
 }

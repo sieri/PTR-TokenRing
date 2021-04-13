@@ -165,6 +165,7 @@ void MacReceiver(void *argument)
 							//read = 0;
 							//send mac error
 							queueMsg.type = MAC_ERROR;
+							queueMsg.anyPtr = "MAC Error";
 						
 							retCode = osMessageQueuePut(queue_lcd_id, &queueMsg, osPriorityNormal, 0);
 							CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
