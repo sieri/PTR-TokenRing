@@ -12,6 +12,40 @@
 #include "main.h"
 
 
+
+void sendToken()
+{	
+	struct queueMsg_t queueMsg;	//Queue message
+	uint8_t *qPtr;							//Pointer for the queue
+	osStatus_t retCode;					//For the return code
+	
+	
+	//recreate new token
+	queueMsg.type = TOKEN;
+	
+	qPtr = osMemoryPoolAlloc(memPool, osWaitForever);
+	
+	*qPtr = TOKEN_TAG;
+	
+	//clear token
+	//update ready list
+	for(uint32_t i = 0; i < 15 ;i++)
+	{
+		if(i != gTokenInterface.myAddress)
+		{
+			*(qPtr+i+1) = gTokenInterface.station_list[i];
+		}
+	}
+
+	
+	queueMsg.anyPtr = qPtr;
+
+
+	queueMsg.type = TOKEN;
+	retCode = osMessageQueuePut(queue_macS_id, &queueMsg, osPriorityNormal, 0);
+	CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
+}
+
 //////////////////////////////////////////////////////////////////////////////////
 // THREAD MAC RECEIVER
 //////////////////////////////////////////////////////////////////////////////////
@@ -62,7 +96,7 @@ void MacReceiver(void *argument)
 					{
 						//calcul of the checksum
 						checksum = 0;
-						for(int i=3; i<qPtr[2]; i++)
+						for(int i=0; i<qPtr[2]+3; i++)
 						{
 							checksum += qPtr[i];
 						}
@@ -108,16 +142,36 @@ void MacReceiver(void *argument)
 				else//else source this station
 				{
 				//check read bit
-				//if read = 1
-					//if ack = 1
-						//send token
-					//else 
-						//read= 0, ack = 0
-						//send back to physic
-					//end if
-				//else read 0
-					//send mac error
-					//send token
+					uint8_t status = qPtr[qPtr[2]+3] & 0x03;
+					
+					switch(status)
+					{
+						case 0x03:
+							//read =1 acc =1
+							//send token
+						
+							sendToken();
+						
+							break;
+							
+						case 0x02:
+							//read = 1, acc=0
+							//send message back
+							//TODO
+							break;
+						
+						case 0x00:
+						case 0x01:
+							//read = 0;
+							//send mac error
+							queueMsg.type = MAC_ERROR;
+						
+							retCode = osMessageQueuePut(queue_lcd_id, &queueMsg, osPriorityNormal, 0);
+							CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
+							//send token
+							sendToken();
+					}
+
 				}//end if
 			}//else if token
 

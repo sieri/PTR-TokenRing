@@ -21,7 +21,7 @@ void MacSender(void *argument)
 	struct queueMsg_t queueMsg;	//Queue message
 	uint8_t *qPtr;							//Pointer for the queue
 	osStatus_t retCode;					//For the return code
-	uint8_t buffer[10][MAX_BLOCK_SIZE];	//Array of queueMessage 
+	uint8_t* buffer[10];	//Array of queueMessage 
 	uint8_t index = 0;	//Index for the array buffer
 	uint8_t checksum = 0;	
 	
@@ -71,11 +71,15 @@ void MacSender(void *argument)
 				/*QUEUE SEND*/ 	
 				//put frame to queue
 				queueMsg.type = TO_PHY;
-				queueMsg.anyPtr = &buffer[index];
+				queueMsg.anyPtr = buffer[index-1];
 				retCode = osMessageQueuePut(queue_phyS_id, &queueMsg, osPriorityNormal, 0);
 				CheckRetCode(retCode,__LINE__,__FILE__,CONTINUE);
 
+
 				index--;
+				
+				
+				//TODO: fifo not lifo
 			}
 		}
 		//first time token if required
@@ -100,20 +104,25 @@ void MacSender(void *argument)
 		{
 			/*store*/
 			//store data in buffer
-			buffer[index][0] = (gTokenInterface.myAddress)<<3 + (queueMsg.sapi&0x03);
-			buffer[index][1] = (queueMsg.addr)<<3 + (queueMsg.sapi&0x03);
-			strcpy(buffer[index]+3, queueMsg.anyPtr);
-			
+			buffer[index] = osMemoryPoolAlloc(memPool,osWaitForever);			
+			*buffer[index] = (gTokenInterface.myAddress<<3) + (queueMsg.sapi&0x03);
+			*(buffer[index]+1) = (queueMsg.addr<<3) + (queueMsg.sapi&0x03);
+			*(buffer[index]+2) = 0;
 			//calcul of the checksum
-			int length = 3;
+			int length = 0;
 			checksum = 0;
-			while(buffer[index][length] != '\0')
+			while(*(qPtr+length) != '\0')
 			{
-				checksum += buffer[index][length];
+				*(buffer[index]+length+3) = *(qPtr+length);
+				checksum += *(buffer[index]+length+3);
 				length++;
 			}
-			buffer[index][2] = length-3;
-			buffer[index][length] = checksum<<2;
+
+			*(buffer[index]+2) = length;
+			
+			//add bytes missing from checksum
+			checksum += *buffer[index] + *(buffer[index]+1) + *(buffer[index]+2);
+			*(buffer[index]+length+3) = checksum<<2;
 			
 			index++;	
 			
